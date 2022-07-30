@@ -11,10 +11,13 @@ pub mod pallet {
 	use frame_support::traits:: {
 		Currency,
 		ReservableCurrency,
-		ConstU32
 	};
+
+	use frame_support::traits::tokens::Balance;
 	use frame_system::pallet_prelude::*;
 	use sp_std::vec::Vec;
+	type BalanceOf<T> = <<T as Config>::MyToken as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -22,36 +25,39 @@ pub mod pallet {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type MyToken: ReservableCurrency<Self::AccountId>;
+
 		///type ReservationFee: Get<<<Self as Config>::MyToken as Currency<<Self as Config>::AccountId>>::Balance>;
 		type ForceOrigin: EnsureOrigin<Self::Origin>;
 
 		///The minimun amount one can delegate to avoid spam attacks
-		type MinDelegateAmount: Get<U32>;
+		type MinDelegateAmount: Balance;
 
 	}
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
-
-	#[pallet::storage]
-
-	/// Key: Delegate, Value: Vec<(Sender, Amount)>
-	pub type DelegatedTokens<T: Config> = StorageMap<T::AccoundId, Blake2_128Concat, T::AccountId, Get<U64>, ValueQuery>;
 	
+	///Prefix: Delegate
+	///Key (1 , 2): (Delegated in question. Account in question)
+	///Value: Amount delegated.
+	#[pallet::storage]
+	pub type DelegatedTokens<T: Config> = StorageDoubleMap<_,Blake2_128Concat, T::AccountId,
+															 Blake2_128Concat, T::AccountId, u64, ValueQuery>;
 	/// Key: DelegateID, UnitType
 	/// must have either a BABE session key or voted on by governance.
-	pub type IsDelegatable<T: Config> = StorageMap<(), Blake2_128Concat, T::AccountId, (), ValueQuery>;
-	pub type Nominators<T: Config> = StorageValue<(), Blake2_128Concat, T::AccountId, (), ValueQuery>;
+	#[pallet::storage]
+	pub type IsDelegatable<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (), ValueQuery>;
+	#[pallet::storage]
+	pub type Nominators<T: Config> = StorageValue<_, Blake2_128Concat, (), ValueQuery>;
 	
-
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/v3/runtime/events-and-errors
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		StakeChange(T::AccountId),
-		DelegatedFunds(T::AccountId),
+		HasDelegated(T::AccountId),
 	}
 
 	// Errors inform users that something went wrong.
@@ -71,47 +77,54 @@ pub mod pallet {
 
 		/// Delegate amount of tokens to a user who is a known delegate or validator.
 		/// Known delegators can only delegate to validators.
-		pub fn delegate_tokens(origin: OriginFor<T>, delegate: T::AccountId, amount: Get<U64>) -> DispatchResult {
+		#[pallet::weight(10000)]
+		pub fn delegate_tokens(origin: OriginFor<T>, delegate: T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
 			// Ensure that :
 			// Sender is legit
 			// The recipient is Delegatable (either voted and known or a validator). 
 			// The sender has enough funds.
 			// The recipient is delegatable (either voted on or a validator).
 			let sender = ensure_signed(origin)?;
-			ensure!(amount > T::MinDelegateAmount, Error::<T>::BelowMinimumAmount);
-			ensure!(T::MyToken::can_reserve(origin::OriginFor<T>::AccoundId, amount), Error::<T>::NotEnoughFunds);
-			ensure!(T::IsDelegatable.contains_key(delegate), Error::<T>::NotDelegatable);
+			
+			ensure!(IsDelegatable::<T>::contains_key(&delegate), Error::<T>::NotDelegatable);
 
-			T::MyToken::reserve(&sender, amount.into()).expect("ensure reserve amount has been called. qed");
+			ensure!(amount > <T>::MinDelegateAmount, Error::<T>::BelowMinimumAmount);
+			
+			//ensure!(T::MyToken::can_reserve(origin::Origin::AccoundId, amount), Error::<T>::NotEnoughFunds);
+			
+			//T::MyToken::reserve(&sender, amount.into()).expect("ensure reserve amount has been called. qed");
 
 			 //Send equal amount also to DelegatedTokens
-			 //todo: find out what to store this as so that we can do DELEGATEID -> SENDERID = amount.
-			AmountDelegated::<T>::set(
-				delegate,
-				amount
-			);
+			 //todo: find out what to store this as so that we can do DELEGATEDID -> SENDERID = amount.
+			 //DelegatedTokens::<T>::try_mutate(origin, delegate)
+
 			
-			Self::deposit_event(Event::ClaimCreated(sender, proof));
+			Self::deposit_event(Event::HasDelegated(sender));
 			Ok(())
 		} 
 
-		pub fn revoke_delegation(origin: OriginFor<T>, delegate: T::AccountId, amount: Get<U64>) -> DispatchResult {
+		#[pallet::weight(10000)]
+		pub fn revoke_delegation(origin: OriginFor<T>, delegate: T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
 			unimplemented!();
 		}
 
-		pub revoke_delegation_all(origin: OriginFor<T>) -> DispatchResult {
+		#[pallet::weight(10000)]
+		pub fn revoke_delegation_all(origin: OriginFor<T>) -> DispatchResult {
 			unimplemented!();
 		}
 
-		pub fn auto_delegate_validators(origin: OriginFor<T>) {
+		#[pallet::weight(10000)]
+		pub fn auto_delegate_validators(origin: OriginFor<T>) -> DispatchResult {
 			unimplemented!();
 		}
 
-		pub fn make_delegatable(origin: OriginFor<T>, delegate: T::AccoundId) {
+		#[pallet::weight(10000)]
+		pub fn make_delegatable(origin: OriginFor<T>) -> DispatchResult {
 			unimplemented!();
 		}
 		
-		pub fn revoke_delegatable(delegate: T::AccoundId) {
+		#[pallet::weight(10000)]
+		pub fn revoke_delegatable(origin: OriginFor<T>) -> DispatchResult {
 			unimplemented!();
 		}
 

@@ -1,8 +1,25 @@
 use crate::{mock::*, Error};
 use frame_support::{assert_noop, assert_ok};
 
+
 #[test]
 fn delegate_tokens_not_enough_token(){
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		let alice_key = 10u64
+		let bob_key = 20u64
+
+        for i in 0u64..10u64 {
+
+            Item10::<T>::insert(i, u128::from(i * 100u64));
+            Item11::<T>::insert(i, u128::from(i * 100u64));
+        }
+        // cannot call iter for 10 because it cannot returns the keys
+        let all_10: Vec<_> = Item10::<T>::iter_values().collect();
+        let all_11: Vec<_> = Item11::<T>::iter().collect();
+        println!("{:?}\n{:?}", all_10, all_11);
+
+        assert!(false)
+    })
 	unimplemented!();
 }
 
