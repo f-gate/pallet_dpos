@@ -267,6 +267,8 @@ impl delegated_pos::Config for Runtime {
 	type Event = Event;
 	type MyToken = Balances; 
 	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
+	type MinDelegateAmount: Balances;
+
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

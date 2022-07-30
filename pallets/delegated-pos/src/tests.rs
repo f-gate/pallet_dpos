@@ -1,14 +1,19 @@
 use crate::{mock::*, Error};
 use frame_support::{assert_noop, assert_ok};
-
+use super::*;
 
 #[test]
 fn delegate_tokens_not_enough_token(){
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		let alice_key = 10u64
 		let bob_key = 20u64
+		<T>::IsDelegatable.insert(alice_key, ());
 
-        for i in 0u64..10u64 {
+		//delegated_pos::delegate_tokens(bob_key, alice_key, )
+
+
+		(origin: OriginFor<T>, delegate: T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
+        /* for i in 0u64..10u64 {
 
             Item10::<T>::insert(i, u128::from(i * 100u64));
             Item11::<T>::insert(i, u128::from(i * 100u64));
@@ -18,7 +23,7 @@ fn delegate_tokens_not_enough_token(){
         let all_11: Vec<_> = Item11::<T>::iter().collect();
         println!("{:?}\n{:?}", all_10, all_11);
 
-        assert!(false)
+        assert!(false) */
     })
 	unimplemented!();
 }

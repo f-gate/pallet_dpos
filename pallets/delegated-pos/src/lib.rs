@@ -43,13 +43,14 @@ pub mod pallet {
 	///Value: Amount delegated.
 	#[pallet::storage]
 	pub type DelegatedTokens<T: Config> = StorageDoubleMap<_,Blake2_128Concat, T::AccountId,
-															 Blake2_128Concat, T::AccountId, u64, ValueQuery>;
+															 Blake2_128Concat, T::AccountId, u64, OptionQuery>;
 	/// Key: DelegateID, UnitType
 	/// must have either a BABE session key or voted on by governance.
 	#[pallet::storage]
 	pub type IsDelegatable<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (), ValueQuery>;
+	
 	#[pallet::storage]
-	pub type Nominators<T: Config> = StorageValue<_, Blake2_128Concat, (), ValueQuery>;
+	pub type Validators<T>  = StorageValue<_, BoundedVec<u8, ConstU32<100>>, ValueQuery>;
 	
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/v3/runtime/events-and-errors
@@ -79,25 +80,29 @@ pub mod pallet {
 		/// Known delegators can only delegate to validators.
 		#[pallet::weight(10000)]
 		pub fn delegate_tokens(origin: OriginFor<T>, delegate: T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
-			// Ensure that :
-			// Sender is legit
+			// Ensure that : Sender is legit
 			// The recipient is Delegatable (either voted and known or a validator). 
 			// The sender has enough funds.
 			// The recipient is delegatable (either voted on or a validator).
 			let sender = ensure_signed(origin)?;
-			
 			ensure!(IsDelegatable::<T>::contains_key(&delegate), Error::<T>::NotDelegatable);
-
-			ensure!(amount > <T>::MinDelegateAmount, Error::<T>::BelowMinimumAmount);
+			//TODO URGENT HOW TO COMPARE BALANCES
+			ensure!(amount > amount, Error::<T>::BelowMinimumAmount);
+			ensure!(T::MyToken::can_reserve(&sender, amount), Error::<T>::NotEnoughFunds);
 			
-			//ensure!(T::MyToken::can_reserve(origin::Origin::AccoundId, amount), Error::<T>::NotEnoughFunds);
-			
-			//T::MyToken::reserve(&sender, amount.into()).expect("ensure reserve amount has been called. qed");
+			T::MyToken::reserve(&sender, amount.into()).expect("ensure reserve amount has been called. qed");
 
 			 //Send equal amount also to DelegatedTokens
-			 //todo: find out what to store this as so that we can do DELEGATEDID -> SENDERID = amount.
-			 //DelegatedTokens::<T>::try_mutate(origin, delegate)
-
+			 if let  Ok(n) = DelegatedTokens::<T>::try_get(&delegate, &sender) {
+				//TODO:
+				//How to insert a balance
+				//do i have to decode?
+				//how to compare this value with a balance?
+				//because this is option query do i need
+				DelegatedTokens::<T>::insert(&delegate, &sender, n)
+			 } else {
+				DelegatedTokens::<T>::insert(&delegate, &sender, 10)
+			 }
 			
 			Self::deposit_event(Event::HasDelegated(sender));
 			Ok(())

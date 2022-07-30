@@ -18,7 +18,7 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		TemplateModule: pallet_template::{Pallet, Call, Storage, Event<T>},
+		Dpos: delegated_pos::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
@@ -49,8 +49,11 @@ impl system::Config for Test {
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
-impl pallet_template::Config for Test {
+impl delegated_pos::Config for Test {
 	type Event = Event;
+	type MyToken = Balances; 
+	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
+	type MinDelegateAmount: Balances;
 }
 
 // Build genesis storage according to the mock runtime.
