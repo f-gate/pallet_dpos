@@ -41,7 +41,8 @@ pub mod pallet {
 	
 	/// Key: DelegateID, UnitType
 	/// must have either a BABE session key or voted on by governance.
-	pub type IsDelegatable<T: Config> = StorageValue<_, T::AccoundId, (), ValueQuery>;
+	pub type IsDelegatable<T: Config> = StorageMap<(), Blake2_128Concat, T::AccountId, (), ValueQuery>;
+	pub type Nominators<T: Config> = StorageValue<(), Blake2_128Concat, T::AccountId, (), ValueQuery>;
 	
 
 	// Pallets use events to inform users when important changes are made.
@@ -59,15 +60,8 @@ pub mod pallet {
 		NotEnoughFunds,
 		ValidatorMaxStake,
 		BelowMinimumAmount,
+		NotDelegatable,
 	}
-
-
-	// How to delegate funds to another user 
-
-	// each user has and account id, anyone can delegate any one 
-	//users with session id are validators>
-	// DelegatedID -> Vec<(AccoundID, Amount)> 
-
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
 	// These functions materialize as "extrinsics", which are often compared to transactions.
@@ -75,30 +69,51 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 
-		/// Delegate amount of tokens to a user who is a known delegate or validator
-		//known delegators can only delegate to validators 
+		/// Delegate amount of tokens to a user who is a known delegate or validator.
+		/// Known delegators can only delegate to validators.
 		pub fn delegate_tokens(origin: OriginFor<T>, delegate: T::AccountId, amount: Get<U64>) -> DispatchResult {
+			// Ensure that :
+			// Sender is legit
+			// The recipient is Delegatable (either voted and known or a validator). 
+			// The sender has enough funds.
+			// The recipient is delegatable (either voted on or a validator).
 			let sender = ensure_signed(origin)?;
-
 			ensure!(amount > T::MinDelegateAmount, Error::<T>::BelowMinimumAmount);
 			ensure!(T::MyToken::can_reserve(origin::OriginFor<T>::AccoundId, amount), Error::<T>::NotEnoughFunds);
+			ensure!(T::IsDelegatable.contains_key(delegate), Error::<T>::NotDelegatable);
 
-			//ensure that the recipient is Delegatable (either voted and known or a validator) 
+			T::MyToken::reserve(&sender, amount.into()).expect("ensure reserve amount has been called. qed");
 
-			//Ensure sender has enough funds to delegate.
-			 T::MyToken::reserve(&sender, amount.into())?;
-
-			 //Send equvulant amount also to AmountDelegated
-			 T::AmountDelegated::append(
+			 //Send equal amount also to DelegatedTokens
+			 //todo: find out what to store this as so that we can do DELEGATEID -> SENDERID = amount.
+			AmountDelegated::<T>::set(
 				delegate,
-				(OriginFor<T>::Origin::AccoundID, amount)
-			 )
+				amount
+			);
 			
-			let current_block = <frame_system::Pallet<T>>::block_number();
-
 			Self::deposit_event(Event::ClaimCreated(sender, proof));
+			Ok(())
 		} 
 
+		pub fn revoke_delegation(origin: OriginFor<T>, delegate: T::AccountId, amount: Get<U64>) -> DispatchResult {
+			unimplemented!();
+		}
+
+		pub revoke_delegation_all(origin: OriginFor<T>) -> DispatchResult {
+			unimplemented!();
+		}
+
+		pub fn auto_delegate_validators(origin: OriginFor<T>) {
+			unimplemented!();
+		}
+
+		pub fn make_delegatable(origin: OriginFor<T>, delegate: T::AccoundId) {
+			unimplemented!();
+		}
+		
+		pub fn revoke_delegatable(delegate: T::AccoundId) {
+			unimplemented!();
+		}
 
 		/* #[pallet::weight(1_000)]
 		pub fn create_claim(
