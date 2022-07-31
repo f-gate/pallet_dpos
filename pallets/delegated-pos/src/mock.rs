@@ -53,7 +53,7 @@ impl delegated_pos::Config for Test {
 	type Event = Event;
 	type MyToken = Balances; 
 	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
-	type MinDelegateAmount: Balances;
+	type MinDelegateAmount: Balances<AccountId>::Balance;
 }
 
 // Build genesis storage according to the mock runtime.

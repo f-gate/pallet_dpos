@@ -32,8 +32,8 @@ pub mod pallet {
 		///type ReservationFee: Get<<<Self as Config>::MyToken as Currency<<Self as Config>::AccountId>>::Balance>;
 		type ForceOrigin: EnsureOrigin<Self::Origin>;
 
-		///The minimun amount one can delegate to avoid spam attacks
-		type MinDelegateAmount: Balance;
+		//The minimun amount one can delegate to avoid spam attacks
+		//type MinDelegateAmount: Balance;
 	}
 
 	#[pallet::pallet]
@@ -136,6 +136,7 @@ pub mod pallet {
 			Self::deposit_event(Event::StakeRemoved(sender));
 			Ok(())
 		}
+
 
 		/* #[pallet::weight(1_000)]
 		pub fn create_claim(

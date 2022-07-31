@@ -267,7 +267,7 @@ impl delegated_pos::Config for Runtime {
 	type Event = Event;
 	type MyToken = Balances; 
 	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
-	type MinDelegateAmount: Balances;
+	//type MinDelegateAmount: IdentityFee<Balance>;
 
 }
 
