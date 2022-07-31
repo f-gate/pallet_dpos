@@ -77,6 +77,7 @@ pub mod pallet {
 		BelowMinimumAmount,
 		NotDelegatable,
 		NotValidator,
+		StakeIsZero,
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -124,9 +125,9 @@ pub mod pallet {
 			let sender = ensure_signed(origin)?;
 			let stake = StakedTokens::<T>::take(&validator, &sender);
 
-			if stake > Zero::zero() {
-				T::MyToken::unreserve(&sender, stake.into());
-			}
+			ensure!(stake > Zero::zero(), Error::<T>::StakeIsZero);
+			T::MyToken::unreserve(&sender, stake.into());
+
 			let vals_new: Vec<T::AccountId> = StakedList::<T>::take(&sender).into_iter().filter(|id| id == &validator).collect();
 			
 			let bounded: BoundedVec<T::AccountId, ConstU32<100>> = vals_new.try_into().unwrap();
