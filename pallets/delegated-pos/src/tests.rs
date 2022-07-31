@@ -9,7 +9,7 @@ fn delegate_tokens_not_enough_token(){
 		let bob_key = 20u64
 		<T>::IsDelegatable.insert(alice_key, ());
 
-		//delegated_pos::delegate_tokens(bob_key, alice_key, )
+		delegated_pos::delegate_tokens(bob_key, alice_key, )
 
 
 		(origin: OriginFor<T>, delegate: T::AccountId, amount: BalanceOf<T>) -> DispatchResult {

@@ -12,12 +12,15 @@ pub mod pallet {
 		Currency,
 		ReservableCurrency,
 	};
+	use sp_runtime::traits:: {
+		Zero
+	};
 
 	use frame_support::traits::tokens::Balance;
 	use frame_system::pallet_prelude::*;
 	use sp_std::vec::Vec;
-	type BalanceOf<T> = <<T as Config>::MyToken as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
+	type BalanceOf<T> = <<T as Config>::MyToken as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -31,33 +34,38 @@ pub mod pallet {
 
 		///The minimun amount one can delegate to avoid spam attacks
 		type MinDelegateAmount: Balance;
-
 	}
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 	
-	///Prefix: Delegate
 	///Key (1 , 2): (Delegated in question. Account in question)
-	///Value: Amount delegated.
+	///Value: Amount staked.
 	#[pallet::storage]
-	pub type DelegatedTokens<T: Config> = StorageDoubleMap<_,Blake2_128Concat, T::AccountId,
-															 Blake2_128Concat, T::AccountId, u64, OptionQuery>;
-	/// Key: DelegateID, UnitType
-	/// must have either a BABE session key or voted on by governance.
+	pub type StakedTokens<T: Config> = StorageDoubleMap<_,Blake2_128Concat, T::AccountId, Blake2_128Concat,T::AccountId, BalanceOf<T> ,  ValueQuery>;
+
+	///List of people someone has Staked to.
+	///Key: (Account in question.)
+	///Value:(List of Validators in question)
 	#[pallet::storage]
-	pub type IsDelegatable<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (), ValueQuery>;
+	pub type StakedList<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, BoundedVec<T::AccountId, ConstU32<100>>, ValueQuery>;
+
+	/// voted on by governance to delegate votes.
+	#[pallet::storage]
+	pub type IsValidator<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (), ValueQuery>;
 	
+	///storage value of all the validators.
 	#[pallet::storage]
-	pub type Validators<T>  = StorageValue<_, BoundedVec<u8, ConstU32<100>>, ValueQuery>;
-	
+	pub type Validators<T: Config>  = StorageValue<_, BoundedVec<(T::AccountId, u8), ConstU32<100>>, ValueQuery>;
+
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/v3/runtime/events-and-errors
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		StakeChange(T::AccountId),
+		StakeRemoved(T::AccountId),
+		HasStaked(T::AccountId),
 		HasDelegated(T::AccountId),
 	}
 
@@ -68,6 +76,7 @@ pub mod pallet {
 		ValidatorMaxStake,
 		BelowMinimumAmount,
 		NotDelegatable,
+		NotValidator,
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -76,61 +85,55 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 
-		/// Delegate amount of tokens to a user who is a known delegate or validator.
-		/// Known delegators can only delegate to validators.
+		/// Delegate amount of tokens to a user who is a known delegate.
+		/// Known delegators can only delegate to validators. - To stop long delegation attack.
 		#[pallet::weight(10000)]
-		pub fn delegate_tokens(origin: OriginFor<T>, delegate: T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
+		pub fn stake_tokens(origin: OriginFor<T>, validator: T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
 			// Ensure that : Sender is legit
 			// The recipient is Delegatable (either voted and known or a validator). 
 			// The sender has enough funds.
-			// The recipient is delegatable (either voted on or a validator).
+			// The origin is not already a delegate.
 			let sender = ensure_signed(origin)?;
-			ensure!(IsDelegatable::<T>::contains_key(&delegate), Error::<T>::NotDelegatable);
+			ensure!(IsValidator::<T>::contains_key(&validator), Error::<T>::NotDelegatable);
+			ensure!(!IsValidator::<T>::contains_key(&sender), Error::<T>::NotDelegatable);
+			
 			//TODO URGENT HOW TO COMPARE BALANCES
 			ensure!(amount > amount, Error::<T>::BelowMinimumAmount);
 			ensure!(T::MyToken::can_reserve(&sender, amount), Error::<T>::NotEnoughFunds);
-			
-			T::MyToken::reserve(&sender, amount.into()).expect("ensure reserve amount has been called. qed");
 
+			T::MyToken::reserve(&sender, amount.into()).expect("ensure reserve amount has been called. qed");
 			 //Send equal amount also to DelegatedTokens
-			 if let  Ok(n) = DelegatedTokens::<T>::try_get(&delegate, &sender) {
-				//TODO:
-				//How to insert a balance
-				//do i have to decode?
-				//how to compare this value with a balance?
-				//because this is option query do i need
-				DelegatedTokens::<T>::insert(&delegate, &sender, n)
+			 if let  Ok(n) = StakedTokens::<T>::try_get(&validator, &sender) {
+				//If exists just add
+				StakedTokens::<T>::insert(&validator, &sender, n + amount);
 			 } else {
-				DelegatedTokens::<T>::insert(&delegate, &sender, 10)
+				//Add to delegated list for OriginID
+				StakedTokens::<T>::insert(&validator, &sender, amount);
+				//TODO: CHECK MAX LENGTH
+				StakedList::<T>::try_append(&sender, &validator).expect("max len has been checked. qed");
 			 }
 			
-			Self::deposit_event(Event::HasDelegated(sender));
+			Self::deposit_event(Event::HasStaked(sender));
 			Ok(())
 		} 
 
+		///Will revoke the entire stake from a validator for the origin
 		#[pallet::weight(10000)]
-		pub fn revoke_delegation(origin: OriginFor<T>, delegate: T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
-			unimplemented!();
-		}
+		pub fn revoke_stake(origin: OriginFor<T>, validator: T::AccountId) -> DispatchResult {
+			//todo extra ensures
+			let sender = ensure_signed(origin)?;
+			let stake = StakedTokens::<T>::take(&validator, &sender);
 
-		#[pallet::weight(10000)]
-		pub fn revoke_delegation_all(origin: OriginFor<T>) -> DispatchResult {
-			unimplemented!();
-		}
+			if stake > Zero::zero() {
+				T::MyToken::unreserve(&sender, stake.into());
+			}
+			let vals_new: Vec<T::AccountId> = StakedList::<T>::take(&sender).into_iter().filter(|id| id == &validator).collect();
+			
+			let bounded: BoundedVec<T::AccountId, ConstU32<100>> = vals_new.try_into().unwrap();
+			StakedList::<T>::insert(&sender, bounded);
 
-		#[pallet::weight(10000)]
-		pub fn auto_delegate_validators(origin: OriginFor<T>) -> DispatchResult {
-			unimplemented!();
-		}
-
-		#[pallet::weight(10000)]
-		pub fn make_delegatable(origin: OriginFor<T>) -> DispatchResult {
-			unimplemented!();
-		}
-		
-		#[pallet::weight(10000)]
-		pub fn revoke_delegatable(origin: OriginFor<T>) -> DispatchResult {
-			unimplemented!();
+			Self::deposit_event(Event::StakeRemoved(sender));
+			Ok(())
 		}
 
 		/* #[pallet::weight(1_000)]
