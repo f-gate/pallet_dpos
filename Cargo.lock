@@ -3788,10 +3788,12 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
  "hex-literal",
- "pallet-aura",
+ "pallet-authority-discovery",
+ "pallet-babe",
  "pallet-balances",
  "pallet-grandpa",
  "pallet-randomness-collective-flip",
+ "pallet-session",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",
@@ -3799,8 +3801,9 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-api",
+ "sp-authority-discovery",
  "sp-block-builder",
- "sp-consensus-aura",
+ "sp-consensus-babe",
  "sp-core",
  "sp-inherents",
  "sp-offchain",
@@ -3978,17 +3981,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-aura"
+name = "pallet-authority-discovery"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.26#e8a7d161f39db70cb27fdad6c6e215cf493ebc3b"
 dependencies = [
  "frame-support",
  "frame-system",
- "pallet-timestamp",
+ "pallet-session",
  "parity-scale-codec",
  "scale-info",
  "sp-application-crypto",
- "sp-consensus-aura",
+ "sp-authority-discovery",
  "sp-runtime",
  "sp-std",
 ]
@@ -4005,6 +4008,30 @@ dependencies = [
  "scale-info",
  "sp-authorship",
  "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-babe"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.26#e8a7d161f39db70cb27fdad6c6e215cf493ebc3b"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-authorship",
+ "pallet-session",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-application-crypto",
+ "sp-consensus-babe",
+ "sp-consensus-vrf",
+ "sp-io",
+ "sp-runtime",
+ "sp-session",
+ "sp-staking",
  "sp-std",
 ]
 
@@ -6481,6 +6508,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "sp-authority-discovery"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.26#e8a7d161f39db70cb27fdad6c6e215cf493ebc3b"
+dependencies = [
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+ "sp-application-crypto",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "sp-authorship"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.26#e8a7d161f39db70cb27fdad6c6e215cf493ebc3b"
@@ -6560,6 +6600,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "sp-consensus-babe"
+version = "0.10.0-dev"
+source = "git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.26#e8a7d161f39db70cb27fdad6c6e215cf493ebc3b"
+dependencies = [
+ "async-trait",
+ "merlin",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-api",
+ "sp-application-crypto",
+ "sp-consensus",
+ "sp-consensus-slots",
+ "sp-consensus-vrf",
+ "sp-core",
+ "sp-inherents",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "sp-timestamp",
+]
+
+[[package]]
 name = "sp-consensus-slots"
 version = "0.10.0-dev"
 source = "git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.26#e8a7d161f39db70cb27fdad6c6e215cf493ebc3b"
@@ -6571,6 +6634,19 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-timestamp",
+]
+
+[[package]]
+name = "sp-consensus-vrf"
+version = "0.10.0-dev"
+source = "git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.26#e8a7d161f39db70cb27fdad6c6e215cf493ebc3b"
+dependencies = [
+ "parity-scale-codec",
+ "scale-info",
+ "schnorrkel",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
