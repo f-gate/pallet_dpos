@@ -1,14 +1,16 @@
-use crate as pallet_template;
+use crate as delegated_pos;
 use frame_support::traits::{ConstU16, ConstU64};
 use frame_system as system;
+use pallet_balances::*;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
-
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
+use frame_support::traits::ReservableCurrency;
+use frame_system::EnsureRoot;
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
@@ -17,10 +19,13 @@ frame_support::construct_runtime!(
 		NodeBlock = Block,
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		Dpos: delegated_pos::{Pallet, Call, Storage, Event<T>},
+		System: frame_system,
+		Dpos: delegated_pos,
+		Balances: pallet_balances,
 	}
 );
+
+type Balance = u64;
 
 impl system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
@@ -40,7 +45,7 @@ impl system::Config for Test {
 	type BlockHashCount = ConstU64<250>;
 	type Version = ();
 	type PalletInfo = PalletInfo;
-	type AccountData = ();
+	type AccountData = pallet_balances::AccountData<Balance>;
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
@@ -49,11 +54,23 @@ impl system::Config for Test {
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
+impl pallet_balances::Config for Test {
+	type MaxLocks = ();
+	type MaxReserves = ();
+	type ReserveIdentifier = [u8; 8];
+	type Balance = u64;
+	type DustRemoval = ();
+	type Event = Event;
+	type ExistentialDeposit = ConstU64<1>;
+	type AccountStore = System;
+	type WeightInfo = ();
+}
+
 impl delegated_pos::Config for Test {
 	type Event = Event;
-	type MyToken = Balances; 
-	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
-	type MinDelegateAmount: Balances<AccountId>::Balance;
+	type MyToken = Balances; //TODO>???
+	type ForceOrigin = EnsureRoot<Self::AccountId>;
+	//type MinDelegateAmount: u64;
 }
 
 // Build genesis storage according to the mock runtime.
