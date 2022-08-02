@@ -1,3 +1,4 @@
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 /// Edit this file to define custom logic or remove it if it is not needed.
@@ -15,13 +16,22 @@ mod tests;
 pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*,
-		traits::{Currency, ReservableCurrency},
+		traits::{
+			tokens::{fungible::Inspect, Balance},
+			Currency, FindAuthor, ReservableCurrency,
+		},
 	};
-	use sp_runtime::traits::Zero;
-
-	use frame_support::traits::tokens::Balance;
 	use frame_system::pallet_prelude::*;
+	use sp_runtime::traits::{
+		Zero,
+		Block,
+		Extrinsic,
+		IdentifyAccount,
+		Verify,
+		
+	};	
 	use sp_std::vec::Vec;
+	use sp_core::Pair;
 
 	type BalanceOf<T> =
 		<<T as Config>::MyToken as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -32,31 +42,14 @@ pub mod pallet {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type MyToken: ReservableCurrency<Self::AccountId>;
-
-		///type ReservationFee: Get<<<Self as Config>::MyToken as Currency<<Self as
-		/// Config>::AccountId>>::Balance>;
 		type ForceOrigin: EnsureOrigin<Self::Origin>;
-
-		//The minimun amount one can delegate to avoid spam attacks
-		//type MinDelegateAmount: Balance;
+		type MinimumStake: Get<BalanceOf<Self>>;
+		type BlocksTillReward: Get<BlockNumberFor<Self>>;
 	}
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
-
-	//#[pallet::genesis_config]
-	//pub struct GenesisConfig<T: Config> {
-	//  pub staked_tokens: StorageDoubleMap,
-	//  pub max_members: Option<u32>,
-	//}
-	//
-	//#[pallet::genesis_build]
-	//impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
-	//fn build(&self) {
-	//// self.max
-	//	 }
-	//}
 
 	///Key (1 , 2): (Delegated in question. Account in question)
 	///Value: Amount staked.
@@ -87,10 +80,15 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type IsValidator<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (), ValueQuery>;
 
+
+	#[pallet::storage]
+	pub type ActiveSet<T: Config> =
+		StorageValue<_, BoundedVec<T::AccountId, ConstU32<100>>, ValueQuery>;
+
 	///storage value of all the validators.
 	#[pallet::storage]
 	pub type Validators<T: Config> =
-		StorageValue<_, BoundedVec<(T::AccountId, u8), ConstU32<100>>, ValueQuery>;
+		StorageValue<_, BoundedVec<(T::AccountId, u32), ConstU32<100>>, ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/v3/runtime/events-and-errors
@@ -104,7 +102,55 @@ pub mod pallet {
 		ValidatorRemoved(T::AccountId),
 	}
 
-	// Errors inform users that something went wrong.
+	#[pallet::genesis_config]
+	pub struct GenesisConfig<T: Config> {
+		init_validators: Vec<T::AccountId>
+	}
+
+	#[cfg(feature = "std")]
+	impl<T: Config> Default for GenesisConfig<T> {
+	fn default() -> Self {
+		Self {init_validators: Default::default() }
+	}
+}
+	///Take the genisis build and push validators into storage
+	#[pallet::genesis_build]
+	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+		fn build(&self) {
+			for auth in &self.init_validators {
+				IsValidator::<T>::insert(auth.clone(), ());
+			}
+			let tuple_vec: Vec<(T::AccountId, u32)> = self.init_validators.iter().map(|auth| {
+				(auth.clone(), 0u32)
+			}).collect();
+			let bounded_vec: BoundedVec<(T::AccountId, u32), ConstU32<100>> = tuple_vec.try_into().unwrap();
+			Validators::<T>::set(bounded_vec);
+		}
+	}
+
+	///on init we get all the validators, sort by stake, grab top one third the account ids.
+	///push into ActiveSet
+	///currently no rewards for being in active stake
+    #[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(current_block_num: T::BlockNumber) -> Weight {
+			if current_block_num % T::BlocksTillReward::get() == Zero::zero() {
+				let mut validators = Validators::<T>::get();
+				validators.sort_by(|a, b| (a.1).partial_cmp(&b.1).unwrap());
+				let middleman: Vec<T::AccountId> = validators[0..validators.len() / 3].iter().map(|item| {
+					item.0.clone()
+				}).collect();
+				if let Ok(n) = middleman.try_into() {
+					ActiveSet::<T>::kill();
+					ActiveSet::<T>::set(n);
+				}
+				//todo: None case
+			}
+
+			10000 as u64
+		}
+	}
+
 	#[pallet::error]
 	pub enum Error<T> {
 		NotEnoughFunds,
@@ -114,6 +160,9 @@ pub mod pallet {
 		StakeIsZero,
 		AlreadyValidator,
 		BadAuraKey,
+		TooManyValidators,
+		NoValidators,
+
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -129,16 +178,15 @@ pub mod pallet {
 			validator: T::AccountId,
 			amount: BalanceOf<T>,
 		) -> DispatchResult {
-			// Ensure that : Sender is legit
-			// The recipient is Delegatable (either voted and known or a validator).
-			// The sender has enough funds.
-			// The origin is not already a delegate.
 			let sender = ensure_signed(origin)?;
+
+			// The recipient is Delegatable (either voted and known or a validator).
 			ensure!(IsValidator::<T>::contains_key(&validator), Error::<T>::NotValidator);
+			// The origin is not already a delegate.
 			ensure!(!IsValidator::<T>::contains_key(&sender), Error::<T>::NotValidator);
 
-			//TODO: URGENT HOW TO COMPARE BALANCES
-			ensure!(amount > amount, Error::<T>::BelowMinimumAmount);
+			// The sender has enough funds.
+			ensure!(T::MinimumStake::get() > amount, Error::<T>::BelowMinimumAmount);
 			ensure!(T::MyToken::can_reserve(&sender, amount), Error::<T>::NotEnoughFunds);
 
 			T::MyToken::reserve(&sender, amount.into())
@@ -150,9 +198,10 @@ pub mod pallet {
 			} else {
 				//Add to delegated list for OriginID
 				StakedTokens::<T>::insert(&validator, &sender, amount);
-				//TODO: CHECK MAX LENGTH
-				StakedList::<T>::try_append(&sender, &validator)
-					.expect("max len has been checked. qed");
+				ensure!(
+					StakedList::<T>::try_append(&sender, &validator).is_ok(),
+					Error::<T>::TooManyValidators
+				)
 			}
 
 			Self::deposit_event(Event::HasStaked(sender));
@@ -181,28 +230,25 @@ pub mod pallet {
 			Ok(())
 		}
 
-		//TODO: Aura implementation.
+
 		/// Add a validator to the staking system given a valid aura key
 		#[pallet::weight(10000)]
-		pub fn add_validator(origin: OriginFor<T>, aura_key: bool) -> DispatchResult {
-			let sender = ensure_signed(origin)?;
-
-			//TODO: CHECK AURA_KEY
-			ensure!(aura_key, Error::<T>::BadAuraKey);
-
-			ensure!(!IsValidator::<T>::contains_key(&sender), Error::<T>::AlreadyValidator);
-			IsValidator::<T>::insert(&sender, ());
-			Self::deposit_event(Event::ValidatorAdded(sender));
+		pub fn add_validator(origin: OriginFor<T>,  validator: T::AccountId) -> DispatchResult {
+			let sender = ensure_root(origin)?;
+			//ensure they are not already a validator
+			ensure!(!IsValidator::<T>::contains_key(&validator), Error::<T>::AlreadyValidator);
+			IsValidator::<T>::insert(&validator, ());
+			Self::deposit_event(Event::ValidatorAdded(validator));
 			Ok(())
 		}
 
 		///Remove validator if is validator
 		#[pallet::weight(10000)]
-		pub fn remove_validator(origin: OriginFor<T>) -> DispatchResult {
-			let sender = ensure_signed(origin)?;
-			ensure!(IsValidator::<T>::contains_key(&sender), Error::<T>::NotValidator);
-			IsValidator::<T>::remove(&sender);
-			Self::deposit_event(Event::ValidatorRemoved(sender));
+		pub fn remove_validator(origin: OriginFor<T>, validator: T::AccountId) -> DispatchResult {
+			let sender = ensure_root(origin)?;
+			ensure!(IsValidator::<T>::contains_key(&validator), Error::<T>::NotValidator);
+			IsValidator::<T>::remove(&validator);
+			Self::deposit_event(Event::ValidatorRemoved(validator));
 			Ok(())
 		}
 	}

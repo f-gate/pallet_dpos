@@ -11,6 +11,8 @@ type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 use frame_support::traits::ReservableCurrency;
 use frame_system::EnsureRoot;
+use sp_runtime::traits::Get;
+use sp_runtime::traits::ConstU32;
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
@@ -70,10 +72,22 @@ impl delegated_pos::Config for Test {
 	type Event = Event;
 	type MyToken = Balances; //TODO>???
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
-	//type MinDelegateAmount: u64;
+	type MinimumStake = ConstU64<500>;
+	type BlocksTillReward = ConstU64<1>;
+
 }
+
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	
+	
+	pallet_balances::GenesisConfig::<Test> {
+		balances: vec![(0, 1000000), (1, 9999999), (2, 10000000)],
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
+
+	t.into()
 }
