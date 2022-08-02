@@ -1,6 +1,6 @@
 use node_template_runtime::{
 	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, Signature, SudoConfig,
-	SystemConfig, WASM_BINARY, 
+	SystemConfig, WASM_BINARY,
 };
 use sc_service::ChainType;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -38,8 +38,7 @@ pub fn authority_keys_from_seed(s: &str) -> (AuraId, GrandpaId) {
 
 pub fn development_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;
-	let accounts_to_map: Vec<AccountId> =
-	
+
 	Ok(ChainSpec::from_genesis(
 		// Name
 		"Development",
@@ -69,10 +68,11 @@ pub fn development_config() -> Result<ChainSpec, String> {
 		None,
 		// Protocol ID
 		None,
-		None,
 		// Properties
 		None,
 		// Extensions
+		None,
+
 		None,
 	))
 }
@@ -90,7 +90,7 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 			testnet_genesis(
 				wasm_binary,
 				// Initial PoA authorities
-				vec![authority_keys_from_seed("Alice"), authority_keys_from_seed("Bob"), authority_keys_from_seed("Jeff"), authority_keys_from_seed("Steve")],
+				vec![authority_keys_from_seed("Alice"), authority_keys_from_seed("Bob")],
 				// Sudo account
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				// Pre-funded accounts
@@ -119,8 +119,9 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		None,
 		// Properties
 		None,
-		None,
 		// Extensions
+		None,
+
 		None,
 	))
 }
@@ -133,14 +134,6 @@ fn testnet_genesis(
 	endowed_accounts: Vec<AccountId>,
 	_enable_println: bool,
 ) -> GenesisConfig {
-	let init_vals: Vec<AccountId> =
-	vec![
-		get_account_id_from_seed::<sr25519::Public>("Alice"),
-		get_account_id_from_seed::<sr25519::Public>("Bob"),
-		get_account_id_from_seed::<sr25519::Public>("Charlie"),
-	];
-	
-	
 	GenesisConfig {
 		system: SystemConfig {
 			// Add Wasm runtime to storage.
@@ -160,11 +153,8 @@ fn testnet_genesis(
 			// Assign network admin rights.
 			key: Some(root_key),
 		},
-		transaction_payment: Default::default(),
-		dpos: DposConfig {
-			init_vals: init_validators,
-		} 
-		
+		transaction_payment:  None,
 
+		dpos: None,
 	}
 }

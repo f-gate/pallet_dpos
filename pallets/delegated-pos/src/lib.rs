@@ -1,4 +1,3 @@
-
 #![cfg_attr(not(feature = "std"), no_std)]
 
 /// Edit this file to define custom logic or remove it if it is not needed.
@@ -22,16 +21,8 @@ pub mod pallet {
 		},
 	};
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::{
-		Zero,
-		Block,
-		Extrinsic,
-		IdentifyAccount,
-		Verify,
-		
-	};	
+	use sp_runtime::traits::{Block, Extrinsic, IdentifyAccount, Verify, Zero};
 	use sp_std::vec::Vec;
-	use sp_core::Pair;
 
 	type BalanceOf<T> =
 		<<T as Config>::MyToken as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -44,7 +35,7 @@ pub mod pallet {
 		type MyToken: ReservableCurrency<Self::AccountId>;
 		type ForceOrigin: EnsureOrigin<Self::Origin>;
 		type MinimumStake: Get<BalanceOf<Self>>;
-		type BlocksTillReward: Get<BlockNumberFor<Self>>;
+		type BlocksTillSwap: Get<u64>;
 	}
 
 	#[pallet::pallet]
@@ -68,7 +59,7 @@ pub mod pallet {
 	///Key: (Account in question.)
 	///Value:(List of Validators in question)
 	#[pallet::storage]
-	pub type StakedList<T: Config> = StorageMap<
+	pub type AccountHasStakedTo<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
 		T::AccountId,
@@ -79,7 +70,6 @@ pub mod pallet {
 	/// voted on by governance to delegate votes.
 	#[pallet::storage]
 	pub type IsValidator<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (), ValueQuery>;
-
 
 	#[pallet::storage]
 	pub type ActiveSet<T: Config> =
@@ -104,15 +94,15 @@ pub mod pallet {
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
-		init_validators: Vec<T::AccountId>
+		pub init_validators: Vec<T::AccountId>,
 	}
 
 	#[cfg(feature = "std")]
 	impl<T: Config> Default for GenesisConfig<T> {
-	fn default() -> Self {
-		Self {init_validators: Default::default() }
+		fn default() -> Self {
+			Self { init_validators: Vec::new() }
+		}
 	}
-}
 	///Take the genisis build and push validators into storage
 	#[pallet::genesis_build]
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
@@ -120,10 +110,11 @@ pub mod pallet {
 			for auth in &self.init_validators {
 				IsValidator::<T>::insert(auth.clone(), ());
 			}
-			let tuple_vec: Vec<(T::AccountId, u32)> = self.init_validators.iter().map(|auth| {
-				(auth.clone(), 0u32)
-			}).collect();
-			let bounded_vec: BoundedVec<(T::AccountId, u32), ConstU32<100>> = tuple_vec.try_into().unwrap();
+			//turn to tuple with value 0 to insert to Validator:Stake
+			let tuple_vec: Vec<(T::AccountId, u32)> =
+				self.init_validators.iter().map(|auth| (auth.clone(), 0u32)).collect();
+			let bounded_vec: BoundedVec<(T::AccountId, u32), ConstU32<100>> =
+				tuple_vec.try_into().unwrap();
 			Validators::<T>::set(bounded_vec);
 		}
 	}
@@ -131,23 +122,27 @@ pub mod pallet {
 	///on init we get all the validators, sort by stake, grab top one third the account ids.
 	///push into ActiveSet
 	///currently no rewards for being in active stake
-    #[pallet::hooks]
+	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(current_block_num: T::BlockNumber) -> Weight {
-			if current_block_num % T::BlocksTillReward::get() == Zero::zero() {
+			//
 				let mut validators = Validators::<T>::get();
 				validators.sort_by(|a, b| (a.1).partial_cmp(&b.1).unwrap());
-				let middleman: Vec<T::AccountId> = validators[0..validators.len() / 3].iter().map(|item| {
-					item.0.clone()
-				}).collect();
+				
+				let middleman: Vec<T::AccountId> =
+					validators[(validators.len() / 3)..validators.len()]
+					.	iter()
+						.map(|item| item.0.clone())
+						.collect();
+
 				if let Ok(n) = middleman.try_into() {
 					ActiveSet::<T>::kill();
 					ActiveSet::<T>::set(n);
 				}
+			
 				//todo: None case
-			}
 
-			10000 as u64
+			10000u64
 		}
 	}
 
@@ -162,16 +157,13 @@ pub mod pallet {
 		BadAuraKey,
 		TooManyValidators,
 		NoValidators,
-
 	}
 
-	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
-	// These functions materialize as "extrinsics", which are often compared to transactions.
-	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Delegate amount of tokens to a user who is a known delegate.
 		/// Known delegators can only delegate to validators. - To stop long delegation attack.
+		//todo: insert into 
 		#[pallet::weight(10000)]
 		pub fn stake_tokens(
 			origin: OriginFor<T>,
@@ -199,10 +191,20 @@ pub mod pallet {
 				//Add to delegated list for OriginID
 				StakedTokens::<T>::insert(&validator, &sender, amount);
 				ensure!(
-					StakedList::<T>::try_append(&sender, &validator).is_ok(),
+					AccountHasStakedTo::<T>::try_append(&sender, &validator).is_ok(),
 					Error::<T>::TooManyValidators
 				)
 			}
+
+			//update validators staked amount todo: rafactor nicer solution
+			//FATAL BUG NEEDS FIXING VALIDATOR STOAGE IS U32 NOT BALANCE
+			//let validator_totals_new = Validators::<T>::take()	
+			//.into_iter()
+			//.map(|id|{ if id.0 == validator { id.1 += amount::free_balance() }})
+			//.collect();
+
+			//let bounded: BoundedVec<T::AccountId, ConstU32<100>> = vals_new.try_into().unwrap();
+
 
 			Self::deposit_event(Event::HasStaked(sender));
 			Ok(())
@@ -213,27 +215,35 @@ pub mod pallet {
 		pub fn revoke_stake(origin: OriginFor<T>, validator: T::AccountId) -> DispatchResult {
 			//todo extra ensures
 			let sender = ensure_signed(origin)?;
-			let stake = StakedTokens::<T>::take(&validator, &sender);
+			ensure!(IsValidator::<T>::contains_key(&validator), Error::<T>::NotValidator);
 
+			let stake = StakedTokens::<T>::take(&validator, &sender);
 			ensure!(stake > Zero::zero(), Error::<T>::StakeIsZero);
 			T::MyToken::unreserve(&sender, stake.into());
 
-			let vals_new: Vec<T::AccountId> = StakedList::<T>::take(&sender)
+			let vals_new: Vec<T::AccountId> = AccountHasStakedTo::<T>::take(&sender)
 				.into_iter()
-				.filter(|id| id == &validator)
+				.filter(|id| !(id == &validator))
 				.collect();
 
 			let bounded: BoundedVec<T::AccountId, ConstU32<100>> = vals_new.try_into().unwrap();
-			StakedList::<T>::insert(&sender, bounded);
+			AccountHasStakedTo::<T>::insert(&sender, bounded);
+
+			//update validators list
+			let validator_totals_new: Vec<(T::AccountId, u32)> = Validators::<T>::take()	
+			.into_iter()
+			.filter(|id| !(id.0 == validator))
+			.collect();
+			let bounded_vec_res: BoundedVec<(T::AccountId, u32), ConstU32<100>> = validator_totals_new.try_into().expect("reducing, wont be out of bounds.");
+			Validators::<T>::set(bounded_vec_res);
 
 			Self::deposit_event(Event::StakeRemoved(sender));
 			Ok(())
 		}
 
-
 		/// Add a validator to the staking system given a valid aura key
 		#[pallet::weight(10000)]
-		pub fn add_validator(origin: OriginFor<T>,  validator: T::AccountId) -> DispatchResult {
+		pub fn add_validator(origin: OriginFor<T>, validator: T::AccountId) -> DispatchResult {
 			let sender = ensure_root(origin)?;
 			//ensure they are not already a validator
 			ensure!(!IsValidator::<T>::contains_key(&validator), Error::<T>::AlreadyValidator);

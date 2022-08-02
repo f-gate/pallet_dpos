@@ -41,9 +41,7 @@ pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::CurrencyAdapter;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-pub use sp_runtime::{Perbill, Permill};
-pub use sp_runtime::traits::Get;
-
+pub use sp_runtime::{traits::Get, Perbill, Permill};
 
 /// Import the template pallet.
 pub use delegated_pos;
@@ -265,17 +263,15 @@ impl pallet_sudo::Config for Runtime {
 }
 
 parameter_types! {
-	pub const BLOCKSTILLREWARDS: BlockNumber = 1;
-
+	pub const BLOCKSTILLSWAP: BlockNumber = 1;
 }
-
 
 impl delegated_pos::Config for Runtime {
 	type Event = Event;
 	type MyToken = Balances;
 	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
 	type MinimumStake = ConstU128<500>;
-	type BlocksTillReward = BLOCKSTILLREWARDS;
+	type BlocksTillSwap = BLOCKSTILLSWAP;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
