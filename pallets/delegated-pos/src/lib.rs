@@ -199,18 +199,16 @@ pub mod pallet {
 			}
 
 			//update validators staked amount todo: rafactor nicer solution
-			//FATAL BUG NEEDS FIXING VALIDATOR STOAGE IS U32 NOT BALANCE
-			
-			//let mut validator_totals_new: BoundedVec<(T::AccountId,  BalanceOf<T>), ConstU32<100>> = Validators::<T>::take()
-			//.iter()
-			//.map(|id| { 
-			//	//if id.0 == validator { 
-			//	//	id.1 = id.1.saturating_add(amount.into()) 
-			//	//}
-			//})
-			//.collect();
-
-			//let bounded: BoundedVec<T::AccountId, ConstU32<100>> = vals_new.try_into().unwrap();
+			let validator_totals_new: Vec<(T::AccountId,  BalanceOf<T>)> = Validators::<T>::take()
+				.into_iter()
+				.map(|val| {
+					if val.0 == validator {
+						 val.1.saturating_add(amount.into());
+					}
+					val
+				}).collect();
+			let bounded: BoundedVec<T::AccountId, ConstU32<100>> = validator_totals_new.try_into().unwrap();
+			Validators::<T>::set(bounded);
 
 
 			Self::deposit_event(Event::HasStaked(sender));
