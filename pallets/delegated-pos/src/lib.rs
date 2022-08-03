@@ -16,8 +16,7 @@ pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{
-			tokens::{fungible::Inspect, Balance},
-			Currency, FindAuthor, ReservableCurrency,
+			Currency, ReservableCurrency,
 		},
 	};
 	use frame_system::pallet_prelude::*;
@@ -127,7 +126,6 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(current_block_num: T::BlockNumber) -> Weight {
-			//
 				let mut validators = Validators::<T>::get();
 				validators.sort_by(|a, b| (a.1).partial_cmp(&b.1).unwrap());
 				
@@ -141,9 +139,8 @@ pub mod pallet {
 					ActiveSet::<T>::kill();
 					ActiveSet::<T>::set(n);
 				}
-			
 				//todo: None case
-
+			//which weight to return?
 			10000u64
 		}
 	}
@@ -224,6 +221,7 @@ pub mod pallet {
 
 			let stake = StakedTokens::<T>::take(&validator, &sender);
 			ensure!(stake > Zero::zero(), Error::<T>::StakeIsZero);
+			
 			T::MyToken::unreserve(&sender, stake.into());
 
 			let vals_new: Vec<T::AccountId> = AccountHasStakedTo::<T>::take(&sender)
