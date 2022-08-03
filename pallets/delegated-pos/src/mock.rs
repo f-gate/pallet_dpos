@@ -71,7 +71,7 @@ impl delegated_pos::Config for Test {
 	type Event = Event;
 	type MyToken = Balances; //TODO>???
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
-	type MinimumStake = ConstU64<500>;
+	type MinimumStake = ConstU64<100>;
 	type BlocksTillSwap = ConstU64<1>;
 }
 
@@ -80,13 +80,13 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
 	pallet_balances::GenesisConfig::<Test> {
-		balances: vec![(0, 1000000), (1, 9999999), (2, 10000000)],
+		balances: vec![(0, 100000000000), (1, 99999999999), (2, 100000000000)],
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();
 
 	crate::GenesisConfig::<Test> {
-		init_validators: (0..50).collect::<Vec<u64>>(),
+		init_validators: (100..200).collect::<Vec<u64>>(),
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();

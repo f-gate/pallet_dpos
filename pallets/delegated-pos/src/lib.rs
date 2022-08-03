@@ -100,7 +100,7 @@ pub mod pallet {
 	#[cfg(feature = "std")]
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
-			Self { init_validators: Vec::new() }
+			Self {init_validators: Vec::new()}
 		}
 	}
 	///Take the genisis build and push validators into storage
@@ -109,7 +109,6 @@ pub mod pallet {
 		fn build(&self) {
 			for auth in &self.init_validators {
 				IsValidator::<T>::insert(auth.clone(), ());
-
 			}
 
 			//set all validators inititally to authorities
@@ -130,6 +129,8 @@ pub mod pallet {
 	///currently no rewards for being in active stake
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+
+		//todo: add BlocksTillSwap
 		fn on_initialize(current_block_num: T::BlockNumber) -> Weight {
 				let mut validators = Validators::<T>::get();
 				validators.sort_by(|a, b| (a.1).partial_cmp(&b.1).unwrap());
@@ -161,6 +162,7 @@ pub mod pallet {
 		BadAuraKey,
 		TooManyValidators,
 		NoValidators,
+		CannotStakeAsValidator,
 	}
 
 	#[pallet::call]
@@ -179,11 +181,12 @@ pub mod pallet {
 			// The recipient is Delegatable (either voted and known or a validator).
 			ensure!(IsValidator::<T>::contains_key(&validator), Error::<T>::NotValidator);
 			// The origin is not already a delegate.
-			ensure!(!IsValidator::<T>::contains_key(&sender), Error::<T>::NotValidator);
+			ensure!(!IsValidator::<T>::contains_key(&sender), Error::<T>::CannotStakeAsValidator);
 
 			// The sender has enough funds.
-			ensure!(T::MinimumStake::get() > amount, Error::<T>::BelowMinimumAmount);
+			
 			ensure!(T::MyToken::can_reserve(&sender, amount), Error::<T>::NotEnoughFunds);
+//			ensure!(T::MinimumStake::get() > amount, Error::<T>::BelowMinimumAmount);
 
 			T::MyToken::reserve(&sender, amount.into())
 				.expect("ensure reserve amount has been called. qed");

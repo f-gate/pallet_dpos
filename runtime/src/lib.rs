@@ -270,7 +270,7 @@ impl delegated_pos::Config for Runtime {
 	type Event = Event;
 	type MyToken = Balances;
 	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
-	type MinimumStake = ConstU128<500>;
+	type MinimumStake = ConstU128<100>;
 	type BlocksTillSwap = BLOCKSTILLSWAP;
 }
 
