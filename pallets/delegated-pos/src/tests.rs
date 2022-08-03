@@ -27,7 +27,6 @@ fn test_delegate_tokens_not_enough_token() {
 }
 
 //type MinimumStake = ConstU64<500>;
-
 #[test]
 fn test_delegate_tokens_below_minimum() {
 	sp_io::TestExternalities::new_empty().execute_with(|| {

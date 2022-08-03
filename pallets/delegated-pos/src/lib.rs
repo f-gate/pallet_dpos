@@ -109,7 +109,12 @@ pub mod pallet {
 		fn build(&self) {
 			for auth in &self.init_validators {
 				IsValidator::<T>::insert(auth.clone(), ());
+
 			}
+
+			//set all validators inititally to authorities
+			ActiveSet::<T>::set(self.init_validators.clone().try_into().unwrap());
+
 			//turn to tuple with value 0 to insert to Validator:Stake
 			let tuple_vec: Vec<(T::AccountId,  BalanceOf<T>)> =
 				self.init_validators.iter().map(|auth| (auth.clone(), Default::default())).collect();
@@ -185,7 +190,7 @@ pub mod pallet {
 			//Send equal amount also to DelegatedTokens
 			if let Ok(n) = StakedTokens::<T>::try_get(&validator, &sender) {
 				//If exists just add
-				StakedTokens::<T>::insert(&validator, &sender, n + amount);
+				StakedTokens::<T>::insert(&validator, &sender, amount.saturating_add(n));
 			} else {
 				//Add to delegated list for OriginID
 				StakedTokens::<T>::insert(&validator, &sender, amount);
