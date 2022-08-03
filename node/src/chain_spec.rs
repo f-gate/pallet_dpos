@@ -72,7 +72,6 @@ pub fn development_config() -> Result<ChainSpec, String> {
 		None,
 		// Extensions
 		None,
-
 		None,
 	))
 }
@@ -121,7 +120,6 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		None,
 		// Extensions
 		None,
-
 		None,
 	))
 }
@@ -153,8 +151,7 @@ fn testnet_genesis(
 			// Assign network admin rights.
 			key: Some(root_key),
 		},
-		transaction_payment:  None,
-
-		dpos: None,
+		transaction_payment: Default::default(),
+		dpos: Default::default(),
 	}
 }
