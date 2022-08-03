@@ -16,12 +16,7 @@ Current issues:
 
 Use of a constant value for max validators plagues the pallet
 
-broken functionality on stake_tokens() due to a mismatch of types, ie 
-another hardcoded u32, therefore cannot update the stake of each user..
-
 genesis config test fails which means all tests using validators will fail.
-
-chainspec is throwing error.
 
 poorly tested.
 

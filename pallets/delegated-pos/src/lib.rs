@@ -207,7 +207,7 @@ pub mod pallet {
 					}
 					val
 				}).collect();
-			let bounded: BoundedVec<T::AccountId, ConstU32<100>> = validator_totals_new.try_into().unwrap();
+			let bounded: BoundedVec<(T::AccountId,  BalanceOf<T>), ConstU32<100>> = validator_totals_new.try_into().unwrap();
 			Validators::<T>::set(bounded);
 
 
