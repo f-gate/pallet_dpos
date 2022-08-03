@@ -23,6 +23,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::{Block, Extrinsic, IdentifyAccount, Verify, Zero};
 	use sp_std::vec::Vec;
+	use sp_runtime::traits::Saturating;
 
 	type BalanceOf<T> =
 		<<T as Config>::MyToken as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -78,7 +79,7 @@ pub mod pallet {
 	///storage value of all the validators.
 	#[pallet::storage]
 	pub type Validators<T: Config> =
-		StorageValue<_, BoundedVec<(T::AccountId, u32), ConstU32<100>>, ValueQuery>;
+		StorageValue<_, BoundedVec<(T::AccountId, BalanceOf<T>), ConstU32<100>>, ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/v3/runtime/events-and-errors
@@ -111,9 +112,10 @@ pub mod pallet {
 				IsValidator::<T>::insert(auth.clone(), ());
 			}
 			//turn to tuple with value 0 to insert to Validator:Stake
-			let tuple_vec: Vec<(T::AccountId, u32)> =
-				self.init_validators.iter().map(|auth| (auth.clone(), 0u32)).collect();
-			let bounded_vec: BoundedVec<(T::AccountId, u32), ConstU32<100>> =
+			let tuple_vec: Vec<(T::AccountId,  BalanceOf<T>)> =
+				self.init_validators.iter().map(|auth| (auth.clone(), Default::default())).collect();
+
+			let bounded_vec: BoundedVec<(T::AccountId,  BalanceOf<T>), ConstU32<100>> =
 				tuple_vec.try_into().unwrap();
 			Validators::<T>::set(bounded_vec);
 		}
@@ -198,9 +200,14 @@ pub mod pallet {
 
 			//update validators staked amount todo: rafactor nicer solution
 			//FATAL BUG NEEDS FIXING VALIDATOR STOAGE IS U32 NOT BALANCE
-			//let validator_totals_new = Validators::<T>::take()	
-			//.into_iter()
-			//.map(|id|{ if id.0 == validator { id.1 += amount::free_balance() }})
+			
+			//let mut validator_totals_new: BoundedVec<(T::AccountId,  BalanceOf<T>), ConstU32<100>> = Validators::<T>::take()
+			//.iter()
+			//.map(|id| { 
+			//	//if id.0 == validator { 
+			//	//	id.1 = id.1.saturating_add(amount.into()) 
+			//	//}
+			//})
 			//.collect();
 
 			//let bounded: BoundedVec<T::AccountId, ConstU32<100>> = vals_new.try_into().unwrap();
@@ -230,11 +237,11 @@ pub mod pallet {
 			AccountHasStakedTo::<T>::insert(&sender, bounded);
 
 			//update validators list
-			let validator_totals_new: Vec<(T::AccountId, u32)> = Validators::<T>::take()	
+			let validator_totals_new: Vec<(T::AccountId,  BalanceOf<T>)> = Validators::<T>::take()	
 			.into_iter()
 			.filter(|id| !(id.0 == validator))
 			.collect();
-			let bounded_vec_res: BoundedVec<(T::AccountId, u32), ConstU32<100>> = validator_totals_new.try_into().expect("reducing, wont be out of bounds.");
+			let bounded_vec_res: BoundedVec<(T::AccountId, BalanceOf<T>), ConstU32<100>> = validator_totals_new.try_into().expect("reducing, wont be out of bounds.");
 			Validators::<T>::set(bounded_vec_res);
 
 			Self::deposit_event(Event::StakeRemoved(sender));
