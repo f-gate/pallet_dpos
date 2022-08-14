@@ -35,7 +35,7 @@ pub mod pallet {
 		type MyToken: ReservableCurrency<Self::AccountId>;
 		type ForceOrigin: EnsureOrigin<Self::Origin>;
 		type MinimumStake: Get<BalanceOf<Self>>;
-		type BlocksTillSwap: Get<u64>;
+		type BlocksTillSwap: Get<Self::BlockNumber>;
 	}
 
 	#[pallet::pallet]
@@ -132,11 +132,18 @@ pub mod pallet {
 
 		//todo: add BlocksTillSwap
 		fn on_initialize(current_block_num: T::BlockNumber) -> Weight {
+			let mut weight= 0u64;
+			let weight_multiple= 10000u64;
+
+			if current_block_num % T::BlocksTillSwap::get() == Zero::zero() {
+				
 				let mut validators = Validators::<T>::get();
+				weight = validators.len() as u64 * weight_multiple;
+
 				validators.sort_by(|a, b| (a.1).partial_cmp(&b.1).unwrap());
 				
 				let middleman: Vec<T::AccountId> =
-					validators[(validators.len() / 3)..validators.len()]
+					validators[((validators.len() * 2) / 3)..validators.len()]
 					.	iter()
 						.map(|item| item.0.clone())
 						.collect();
@@ -145,9 +152,9 @@ pub mod pallet {
 					ActiveSet::<T>::kill();
 					ActiveSet::<T>::set(n);
 				}
-				//todo: None case
-			//which weight to return?
-			10000u64
+			}
+
+			weight
 		}
 	}
 
