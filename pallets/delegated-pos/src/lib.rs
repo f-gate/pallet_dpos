@@ -24,13 +24,14 @@ pub mod pallet {
 	use sp_std::vec::Vec;
 	use sp_runtime::traits::Saturating;
 	use pallet_session::{SessionManager, SessionHandler};
-
+	
+	type SessionIndex = u64;
 	type BalanceOf<T> =
 		<<T as Config>::MyToken as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config  {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type MyToken: ReservableCurrency<Self::AccountId>;
@@ -39,8 +40,38 @@ pub mod pallet {
 		type BlocksTillSwap: Get<Self::BlockNumber>;
 	}
 
+	pub trait SessionHandlerDpos<T: pallet_session::Config + crate::Config>: SessionHandler<T::ValidatorId> {
+		// Every call this will return the newly updated set of validators
+		fn new_session(new_index: SessionIndex) -> Option<Vec<T::ValidatorId>> {
+			let active_set = ActiveSet::<T>::get();
+			if active_set.len() == 0 {
+				return None
+			}
 
-	pub trait SessionHandlerDpos: 
+			let vec_val_id: Vec<T::ValidatorId> = active_set.into_iter().map(|account_id| {
+				//TODO LOOK WHERE THIS WONT WORK
+				let res  = account_id.try_into();
+				if let Ok(n) = res {
+					return Some(n)
+				} else {
+					return None
+				}
+			}).flatten().collect::<Vec<T::ValidatorId>>();
+			
+			Some(vec_val_id)
+		}
+
+		fn end_session(end_index: SessionIndex) {
+			todo!()
+		}
+		fn start_session(start_index: SessionIndex){
+			todo!()
+		}
+	
+		fn new_session_genesis(new_index: SessionIndex) -> Option<Vec<T::ValidatorId>> { 
+			todo!()
+		}
+	}
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -164,16 +195,16 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		NotEnoughFunds,
-		ValidatorMaxStake,
-		BelowMinimumAmount,
-		NotValidator,
-		StakeIsZero,
 		AlreadyValidator,
 		BadAuraKey,
-		TooManyValidators,
-		NoValidators,
+		BelowMinimumAmount,
 		CannotStakeAsValidator,
+		NotValidator,
+		NotEnoughFunds,
+		NoValidators,
+		StakeIsZero,
+		TooManyValidators,
+		ValidatorMaxStake,
 	}
 
 	#[pallet::call]
@@ -236,13 +267,18 @@ pub mod pallet {
 		pub fn revoke_stake(origin: OriginFor<T>, validator: T::AccountId) -> DispatchResult {
 			//todo extra ensures
 			let sender = ensure_signed(origin)?;
+
+			// Ensure the account id is a validator
 			ensure!(IsValidator::<T>::contains_key(&validator), Error::<T>::NotValidator);
 
+			// Ensure the stake is not zero
 			let stake = StakedTokens::<T>::take(&validator, &sender);
 			ensure!(stake > Zero::zero(), Error::<T>::StakeIsZero);
 			
+			// Unreserve all tokens from that validator user pair
 			T::MyToken::unreserve(&sender, stake.into());
 
+			// Update the accounts staked to
 			let vals_new: Vec<T::AccountId> = AccountHasStakedTo::<T>::take(&sender)
 				.into_iter()
 				.filter(|id| !(id == &validator))
@@ -251,7 +287,7 @@ pub mod pallet {
 			let bounded: BoundedVec<T::AccountId, ConstU32<100>> = vals_new.try_into().unwrap();
 			AccountHasStakedTo::<T>::insert(&sender, bounded);
 
-			//update validators list
+			// Update the validators list
 			let validator_totals_new: Vec<(T::AccountId,  BalanceOf<T>)> = Validators::<T>::take()	
 			.into_iter()
 			.filter(|id| !(id.0 == validator))

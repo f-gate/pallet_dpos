@@ -1156,6 +1156,7 @@ dependencies = [
  "frame-system",
  "pallet-aura",
  "pallet-balances",
+ "pallet-session",
  "parity-scale-codec",
  "scale-info",
  "sp-consensus-aura",
