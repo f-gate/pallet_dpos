@@ -280,6 +280,7 @@ parameter_types! {
 	pub const Offset: BlockNumber = 0;
 }
 
+
 impl pallet_session::Config for Runtime {
 	type Event = Event;
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
@@ -289,8 +290,8 @@ impl pallet_session::Config for Runtime {
 	type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
 	type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
 	//
-	type SessionManager = todo!();
-	type SessionHandler = todo!();
+	type SessionManager = ();
+	type SessionHandler = ()
 	type Keys = opaque::SessionKeys;
 	type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
 }

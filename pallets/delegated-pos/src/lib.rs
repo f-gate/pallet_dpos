@@ -40,7 +40,10 @@ pub mod pallet {
 		type BlocksTillSwap: Get<Self::BlockNumber>;
 	}
 
-	pub trait SessionHandlerDpos<T: pallet_session::Config + crate::Config>: SessionHandler<T::ValidatorId> {
+	pub struct SessionManagerDpos {}
+	
+	impl SessionManager for SessionManagerDpos {
+
 		// Every call this will return the newly updated set of validators
 		fn new_session(new_index: SessionIndex) -> Option<Vec<T::ValidatorId>> {
 			let active_set = ActiveSet::<T>::get();
@@ -48,6 +51,7 @@ pub mod pallet {
 				return None
 			}
 
+			// Grab all the accountids of validators and turn them into ValidatorIds
 			let vec_val_id: Vec<T::ValidatorId> = active_set.into_iter().map(|account_id| {
 				//TODO LOOK WHERE THIS WONT WORK
 				let res  = account_id.try_into();
@@ -71,6 +75,7 @@ pub mod pallet {
 		fn new_session_genesis(new_index: SessionIndex) -> Option<Vec<T::ValidatorId>> { 
 			todo!()
 		}
+
 	}
 
 	#[pallet::pallet]
