@@ -14,10 +14,11 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, Verify},
+	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, Verify, ConvertInto},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
 };
+use pallet_session::historical::*;
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -263,15 +264,36 @@ impl pallet_sudo::Config for Runtime {
 }
 
 parameter_types! {
-	pub const BLOCKSTILLSWAP: BlockNumber = 1;
+	pub const BlocksTillSwap: BlockNumber = 1;
+	pub const MinimumStake: Balance = 100;
 }
 
 impl delegated_pos::Config for Runtime {
 	type Event = Event;
 	type MyToken = Balances;
 	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
-	type MinimumStake = ConstU128<100>;
-	type BlocksTillSwap = BLOCKSTILLSWAP;
+	type MinimumStake = MinimumStake;
+	type BlocksTillSwap = BlocksTillSwap;
+}
+
+parameter_types! {
+	pub const Period: BlockNumber = 1;
+	pub const Offset: BlockNumber = 0;
+}
+
+impl pallet_session::Config for Runtime {
+	type Event = Event;
+	type ValidatorId = <Self as frame_system::Config>::AccountId;
+
+	//not using the stash model
+	type ValidatorIdOf = ConvertInto;
+	type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
+	type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
+	//
+	type SessionManager = ();
+	type SessionHandler = ();
+	type Keys = opaque::SessionKeys;
+	type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -291,6 +313,7 @@ construct_runtime!(
 		Sudo: pallet_sudo,
 		// Include the custom logic from the pallet-template in the runtime.
 		Dpos: delegated_pos,
+		Session: pallet_session,
 
 	}
 );

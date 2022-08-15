@@ -23,6 +23,7 @@ pub mod pallet {
 	use sp_runtime::traits::{Block, Extrinsic, IdentifyAccount, Verify, Zero};
 	use sp_std::vec::Vec;
 	use sp_runtime::traits::Saturating;
+	use pallet_session::{SessionManager, SessionHandler};
 
 	type BalanceOf<T> =
 		<<T as Config>::MyToken as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -37,6 +38,9 @@ pub mod pallet {
 		type MinimumStake: Get<BalanceOf<Self>>;
 		type BlocksTillSwap: Get<Self::BlockNumber>;
 	}
+
+
+	pub trait SessionHandlerDpos: 
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
