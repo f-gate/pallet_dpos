@@ -20,18 +20,17 @@ pub mod pallet {
 		},
 	};
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::{Block, Extrinsic, IdentifyAccount, Verify, Zero};
+	use sp_runtime::traits::{Block, Extrinsic, Zero, Saturating};
 	use sp_std::vec::Vec;
-	use sp_runtime::traits::Saturating;
 	use pallet_session::{SessionManager, SessionHandler};
 	
-	type SessionIndex = u64;
+	type SessionIndex = u32;
 	type BalanceOf<T> =
 		<<T as Config>::MyToken as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config  {
+	pub trait Config: frame_system::Config + pallet_session::Config  {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type MyToken: ReservableCurrency<Self::AccountId>;
@@ -40,43 +39,7 @@ pub mod pallet {
 		type BlocksTillSwap: Get<Self::BlockNumber>;
 	}
 
-	pub struct SessionManagerDpos {}
 	
-	impl SessionManager for SessionManagerDpos {
-
-		// Every call this will return the newly updated set of validators
-		fn new_session(new_index: SessionIndex) -> Option<Vec<T::ValidatorId>> {
-			let active_set = ActiveSet::<T>::get();
-			if active_set.len() == 0 {
-				return None
-			}
-
-			// Grab all the accountids of validators and turn them into ValidatorIds
-			let vec_val_id: Vec<T::ValidatorId> = active_set.into_iter().map(|account_id| {
-				//TODO LOOK WHERE THIS WONT WORK
-				let res  = account_id.try_into();
-				if let Ok(n) = res {
-					return Some(n)
-				} else {
-					return None
-				}
-			}).flatten().collect::<Vec<T::ValidatorId>>();
-			
-			Some(vec_val_id)
-		}
-
-		fn end_session(end_index: SessionIndex) {
-			todo!()
-		}
-		fn start_session(start_index: SessionIndex){
-			todo!()
-		}
-	
-		fn new_session_genesis(new_index: SessionIndex) -> Option<Vec<T::ValidatorId>> { 
-			todo!()
-		}
-
-	}
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -325,4 +288,44 @@ pub mod pallet {
 			Ok(())
 		}
 	}
+
+	pub struct SessionHandlerDpos;
+
+    pub struct SessionManagerDpos<T>(sp_std::marker::PhantomData<T>);
+
+	impl<T: Config> SessionManager<T::ValidatorId> for SessionManagerDpos<T> { 
+        // Every call this will return the newly updated set of validators
+        fn new_session(new_index: SessionIndex) -> Option<Vec<T::ValidatorId>> {
+            let active_set = ActiveSet::<T>::get();
+            if active_set.len() == 0 {
+                return None
+            }
+
+            // Grab all the accountids of validators and turn them into ValidatorIds
+            let vec_val_id: Vec<T::ValidatorId> = active_set.into_iter().map(|account_id| {
+                //TODO LOOK WHERE THIS WONT WORK
+                let res  = account_id.try_into();
+                if let Ok(n) = res {
+                    return Some(n)
+                } else {
+                    return None
+                }
+            }).flatten().collect::<Vec<T::ValidatorId>>();
+			Some(vec_val_id)
+        }
+
+        fn end_session(end_index: SessionIndex) {
+
+        }
+
+        fn start_session(start_index: SessionIndex){
+            todo!()
+        }
+
+        fn new_session_genesis(new_index: SessionIndex) -> Option<Vec<T::ValidatorId>> { 
+            Self::new_session(0)
+        }
+
+    }
+
 }

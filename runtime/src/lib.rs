@@ -290,8 +290,8 @@ impl pallet_session::Config for Runtime {
 	type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
 	type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
 	//
-	type SessionManager = ();
-	type SessionHandler = ()
+	type SessionManager = delegated_pos::SessionManagerDpos<Self::ValidatorId>;
+	type SessionHandler = ()	
 	type Keys = opaque::SessionKeys;
 	type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
 }
@@ -311,7 +311,6 @@ construct_runtime!(
 		Balances: pallet_balances,
 		TransactionPayment: pallet_transaction_payment,
 		Sudo: pallet_sudo,
-		// Include the custom logic from the pallet-template in the runtime.
 		Dpos: delegated_pos,
 		Session: pallet_session,
 
