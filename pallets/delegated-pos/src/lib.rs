@@ -289,8 +289,6 @@ pub mod pallet {
 		}
 	}
 
-	pub struct SessionHandlerDpos;
-
     pub struct SessionManagerDpos<T>(sp_std::marker::PhantomData<T>);
 
 	impl<T: Config> SessionManager<T::ValidatorId> for SessionManagerDpos<T> { 
@@ -303,7 +301,6 @@ pub mod pallet {
 
             // Grab all the accountids of validators and turn them into ValidatorIds
             let vec_val_id: Vec<T::ValidatorId> = active_set.into_iter().map(|account_id| {
-                //TODO LOOK WHERE THIS WONT WORK
                 let res  = account_id.try_into();
                 if let Ok(n) = res {
                     return Some(n)

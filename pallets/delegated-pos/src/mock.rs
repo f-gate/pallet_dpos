@@ -23,6 +23,7 @@ frame_support::construct_runtime!(
 		System: frame_system,
 		Dpos: delegated_pos,
 		Balances: pallet_balances,
+		Session: pallet_session,
 	}
 );
 
@@ -73,6 +74,19 @@ impl delegated_pos::Config for Test {
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type MinimumStake = ConstU64<100>;
 	type BlocksTillSwap = ConstU64<1>;
+}
+
+impl pallet_session::Config for Runtime {
+	type Event = Event;
+	type ValidatorId = AccountId;
+	//not using the stash model so converto into will do.
+	type ValidatorIdOf = ConvertInto;
+	type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
+	type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
+	type SessionManager = delegated_pos::SessionManagerDpos<Test>;
+	type SessionHandler = <opaque::SessionKeys as OpaqueKeys>::KeyTypeIdProviders;	
+	type Keys = opaque::SessionKeys;
+	type WeightInfo = ();
 }
 
 // Build genesis storage according to the mock runtime.

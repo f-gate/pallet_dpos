@@ -154,5 +154,7 @@ fn testnet_genesis(
 		transaction_payment: Default::default(),
 		
 		dpos: Default::default(),
+
+		session: Default::default(),
 	}
 }
