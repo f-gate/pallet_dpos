@@ -424,7 +424,7 @@ impl_runtime_apis! {
 		}
 
 		fn authorities() -> Vec<AuraId> {
-			Session::validators().into_inner()
+			Aura::authorities().into_inner()
 		}
 	}
 
