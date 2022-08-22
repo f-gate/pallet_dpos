@@ -39,8 +39,6 @@ pub mod pallet {
 		type BlocksTillSwap: Get<Self::BlockNumber>;
 	}
 
-	
-
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
@@ -106,6 +104,7 @@ pub mod pallet {
 			Self {init_validators: Vec::new()}
 		}
 	}
+
 	///Take the genisis build and push validators into storage
 	#[pallet::genesis_build]
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
@@ -113,7 +112,6 @@ pub mod pallet {
 			for auth in &self.init_validators {
 				IsValidator::<T>::insert(auth.clone(), ());
 			}
-
 			//set all validators inititally to authorities
 			ActiveSet::<T>::set(self.init_validators.clone().try_into().unwrap());
 
@@ -293,6 +291,7 @@ pub mod pallet {
 
 	impl<T: Config> SessionManager<T::ValidatorId> for SessionManagerDpos<T> { 
         // Every call this will return the newly updated set of validators
+		// will not start the session, will only plan the next session
         fn new_session(new_index: SessionIndex) -> Option<Vec<T::ValidatorId>> {
             let active_set = ActiveSet::<T>::get();
             if active_set.len() == 0 {
@@ -312,7 +311,7 @@ pub mod pallet {
         }
 
         fn end_session(end_index: SessionIndex) {
-
+			
         }
 
         fn start_session(start_index: SessionIndex){

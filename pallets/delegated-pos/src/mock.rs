@@ -2,6 +2,7 @@ use crate as delegated_pos;
 use frame_support::traits::{ConstU16, ConstU64};
 use frame_system as system;
 use pallet_balances::*;
+use pallet_session::*;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -9,9 +10,17 @@ use sp_runtime::{
 };
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
-use frame_support::traits::{GenesisBuild, ReservableCurrency};
+use frame_support::{
+	traits::{GenesisBuild, ReservableCurrency, OneSessionHandler},
+	parameter_types
+};
 use frame_system::EnsureRoot;
-use sp_runtime::traits::{ConstU32, Get};
+use sp_runtime::{
+	traits::{ConstU32, Get, ConvertInto, OpaqueKeys},
+	testing::UintAuthorityId,
+	key_types::DUMMY
+	
+};
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
@@ -28,6 +37,8 @@ frame_support::construct_runtime!(
 );
 
 type Balance = u64;
+type BlockNumber = u64;
+type AccountId = u64;
 
 impl system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
@@ -40,7 +51,7 @@ impl system::Config for Test {
 	type BlockNumber = u64;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = u64;
+	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
 	type Event = Event;
@@ -70,23 +81,61 @@ impl pallet_balances::Config for Test {
 
 impl delegated_pos::Config for Test {
 	type Event = Event;
-	type MyToken = Balances; //TODO>???
-	type ForceOrigin = EnsureRoot<Self::AccountId>;
+	type MyToken = Balances;
+	type ForceOrigin = EnsureRoot<AccountId>;
 	type MinimumStake = ConstU64<100>;
 	type BlocksTillSwap = ConstU64<1>;
 }
 
-impl pallet_session::Config for Runtime {
+sp_runtime::impl_opaque_keys! {
+	pub struct SessionKeys {
+		pub other: OtherSessionHandler,
+	}
+}
+
+parameter_types! {
+	pub static Period: BlockNumber = 5;
+	pub static Offset: BlockNumber = 0;
+}
+	
+impl pallet_session::Config for Test {
 	type Event = Event;
 	type ValidatorId = AccountId;
-	//not using the stash model so converto into will do.
 	type ValidatorIdOf = ConvertInto;
+
+	//Period, Offset
 	type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
 	type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
 	type SessionManager = delegated_pos::SessionManagerDpos<Test>;
-	type SessionHandler = <opaque::SessionKeys as OpaqueKeys>::KeyTypeIdProviders;	
-	type Keys = opaque::SessionKeys;
+	type SessionHandler = (OtherSessionHandler, );	
+	type Keys = SessionKeys;
 	type WeightInfo = ();
+}
+
+
+pub struct OtherSessionHandler;
+impl OneSessionHandler<AccountId> for OtherSessionHandler {
+	type Key = UintAuthorityId;
+
+	fn on_genesis_session<'a, I: 'a>(_: I)
+	where
+		I: Iterator<Item = (&'a AccountId, Self::Key)>,
+		AccountId: 'a,
+	{
+	}
+
+	fn on_new_session<'a, I: 'a>(_: bool, _: I, _: I)
+	where
+		I: Iterator<Item = (&'a AccountId, Self::Key)>,
+		AccountId: 'a,
+	{
+	}
+
+	fn on_disabled(_validator_index: u32) {}
+}
+
+impl sp_runtime::BoundToRuntimeAppPublic for OtherSessionHandler {
+	type Public = UintAuthorityId;
 }
 
 // Build genesis storage according to the mock runtime.
@@ -107,3 +156,5 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 	t.into()
 }
+
+
